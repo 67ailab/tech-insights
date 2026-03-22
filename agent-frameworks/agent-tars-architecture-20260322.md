@@ -7,43 +7,57 @@
 
 ## Executive Summary
 
-Agent TARS is ByteDance's open-source multimodal AI agent stack, hosted in the [bytedance/UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) GitHub repository under the Apache 2.0 license. Despite the repo name, it ships **two distinct products**: **Agent TARS** (a lightweight CLI + Web UI for browser/terminal automation powered by cloud LLMs) and **UI-TARS Desktop** (an Electron native app for full computer GUI control powered by the UI-TARS Vision-Language Model). The codebase is a TypeScript/Node.js pnpm monorepo. The agent loop is driven by a protocol-first **Event Stream** architecture built on an internal `@tarko/*` namespace of packages that layer progressively: a base agent framework (`@tarko/agent`) → MCP integration (`@tarko/mcp-agent`) → domain logic (`@agent-tars/core`) → CLI entrypoint (`@agent-tars/cli`). The UI-TARS VLM achieves state-of-the-art results on OSWorld (42.5%), ScreenSpot-V2 (94.2%), and Android World (64.2%).
+Agent TARS is ByteDance's open-source multimodal AI agent stack, hosted in the [bytedance/UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) GitHub repository under the Apache 2.0 license. Despite the repo name, it ships **two distinct products**: **Agent TARS** (a lightweight CLI + Web UI for browser/terminal automation powered by cloud LLMs) and **UI-TARS Desktop** (an Electron native app for full computer GUI control powered by the UI-TARS Vision-Language Model). The repo is structured as **two independent pnpm monorepos**: the root monorepo manages `apps/ui-tars` (the Electron desktop app) and shared `packages/`; a separate `multimodal/` sub-monorepo manages Agent TARS (`multimodal/agent-tars/`), the `@tarko/*` framework layer (`multimodal/tarko/`), GUI agent packages (`multimodal/gui-agent/`), and the documentation site. The agent loop is driven by a protocol-first **Event Stream** architecture built on the `@tarko/*` packages that layer progressively: base framework (`@tarko/agent`) → MCP integration (`@tarko/mcp-agent`) → domain logic (`@agent-tars/core`) → CLI entrypoint (`@agent-tars/cli`). The UI-TARS VLM achieves state-of-the-art results on OSWorld (42.5%), ScreenSpot-V2 (94.2%), and Android World (64.2%).
 
 ---
 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    bytedance/UI-TARS-desktop                     │
-│                   (pnpm monorepo, TypeScript)                    │
-├───────────────────────────┬─────────────────────────────────────┤
-│      Agent TARS           │         UI-TARS Desktop             │
-│  (CLI + Web UI)           │    (Native Electron Desktop App)    │
-│                           │                                     │
-│  apps/agent-tars/src/cli  │    apps/ui-tars/                   │
-│  apps/agent-tars/src/core │    ├── src/main/  (Electron main)  │
-│  apps/agent-tars/src/web  │    ├── src/preload/                │
-│                           │    └── src/renderer/ (React UI)    │
-└───────────────────────────┴──────────────────┬──────────────────┘
-                                               │
-            ┌──────────────────────────────────┤
-            │     Shared Packages              │
-            ├──────────────────────────────────┤
-            │  packages/agent-infra/           │
-            │  ├── browser      (Puppeteer)    │
-            │  ├── browser-use  (LangChain)    │
-            │  ├── mcp-client   (MCP client)   │
-            │  ├── mcp-servers  (Built-in MCPs)│
-            │  ├── search                      │
-            │  └── logger                      │
-            │                                  │
-            │  packages/ui-tars/               │
-            │  ├── sdk          (VLM loop)     │
-            │  ├── action-parser               │
-            │  ├── operators/   (nut-js, etc.) │
-            │  └── electron-ipc                │
-            └──────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       bytedance/UI-TARS-desktop                          │
+│                                                                          │
+│  ┌─── Root monorepo (apps/ui-tars + packages/) ──────────────────────┐  │
+│  │                                                                    │  │
+│  │   apps/ui-tars/           ← UI-TARS Desktop (Electron)            │  │
+│  │   ├── src/main/           ← Electron main process                 │  │
+│  │   ├── src/preload/        ← Context bridge                        │  │
+│  │   └── src/renderer/       ← React UI (Vite + Tailwind)            │  │
+│  │                                                                    │  │
+│  │   packages/agent-infra/   ← Shared infra (published to npm)       │  │
+│  │   packages/ui-tars/       ← UI-TARS SDK, operators, IPC           │  │
+│  │   packages/common/        ← Build configs                         │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  ┌─── multimodal/ sub-monorepo (own pnpm-workspace.yaml) ────────────┐  │
+│  │                                                                    │  │
+│  │   agent-tars/             ← Agent TARS packages                   │  │
+│  │   ├── cli/                ← @agent-tars/cli (entrypoint)          │  │
+│  │   ├── core/               ← @agent-tars/core (domain logic)       │  │
+│  │   └── interface/          ← @agent-tars/interface (types)         │  │
+│  │                                                                    │  │
+│  │   tarko/                  ← @tarko/* framework layer              │  │
+│  │   ├── agent/              ← @tarko/agent (event-stream base)      │  │
+│  │   ├── mcp-agent/          ← @tarko/mcp-agent (MCP kernel)        │  │
+│  │   ├── agent-cli/          ← @tarko/agent-cli (CLI framework)      │  │
+│  │   ├── agent-server/       ← @tarko/agent-server (HTTP + SSE)      │  │
+│  │   ├── agent-ui/           ← @tarko/agent-ui (Web UI components)   │  │
+│  │   ├── agent-ui-builder/   ← @tarko/agent-ui-builder               │  │
+│  │   ├── context-engineer/   ← @tarko/context-engineer (L0-L3)       │  │
+│  │   ├── llm-client/         ← @tarko/llm-client                     │  │
+│  │   ├── model-provider/     ← @tarko/model-provider                 │  │
+│  │   └── shared-*/           ← @tarko/shared-utils, media-utils      │  │
+│  │                                                                    │  │
+│  │   gui-agent/              ← @gui-agent/* packages                 │  │
+│  │   ├── operator-browser/   ← Browser operator                      │  │
+│  │   ├── action-parser/      ← VLM action parsing                    │  │
+│  │   └── shared/             ← Shared GUI agent types                │  │
+│  │                                                                    │  │
+│  │   omni-tars/              ← @omni-tars/agent                      │  │
+│  │   benchmark/              ← Evaluation benchmarks                 │  │
+│  │   websites/               ← agent-tars.com docs site              │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -242,8 +256,7 @@ Critical for UI-TARS Desktop where MCP servers need to run in-process (Electron 
 ### 9. UI-TARS Desktop — Electron Native App
 
 **Package:** `ui-tars-desktop` (private) v0.2.4  
-**Location:** `apps/ui-tars/`  
-**Electron version:** 34.1.1  
+**Location:** `apps/ui-tars/`  **Electron version:** 34.1.1  
 **Node.js requirement:** ≥ 20.x  
 **Build tool:** electron-vite  
 **UI:** React + Vite + Tailwind CSS 4.x  
@@ -353,50 +366,91 @@ Three interchangeable strategies for browser interaction:
 
 ## Monorepo Structure
 
+The repository contains **two independent pnpm monorepos**:
+
+### Root Monorepo (UI-TARS Desktop + shared infra)
+
 ```
 bytedance/UI-TARS-desktop/
-├── pnpm-workspace.yaml          ← Workspace config
-├── package.json                 ← Root scripts, devDeps, pnpm@9.10.0
-├── turbo.json                   ← Turborepo build graph
+├── pnpm-workspace.yaml          ← Root workspace (apps/*, packages/*)
+├── package.json                 ← pnpm@9.10.0, Node >=20, turbo
 │
 ├── apps/
-│   ├── agent-tars/              ← Agent TARS (CLI + server + web)
-│   │   └── src/
-│   │       ├── cli/             ← @agent-tars/cli
-│   │       ├── core/            ← @agent-tars/core
-│   │       └── interface/       ← @agent-tars/interface
-│   └── ui-tars/                 ← UI-TARS Desktop (Electron)
+│   └── ui-tars/                 ← UI-TARS Desktop (Electron app)
 │       ├── src/
 │       │   ├── main/            ← Electron main process
-│       │   ├── preload/         ← Electron preload
-│       │   └── renderer/        ← React UI
-│       └── package.json         ← ui-tars-desktop, v0.2.4
+│       │   ├── preload/         ← Electron preload / context bridge
+│       │   └── renderer/        ← React + Vite + Tailwind UI
+│       └── package.json         ← ui-tars-desktop v0.2.4
 │
 ├── packages/
-│   ├── agent-infra/             ← Shared infra packages
+│   ├── agent-infra/             ← Shared infra (published to npm)
 │   │   ├── browser/             ← @agent-infra/browser (Puppeteer)
 │   │   ├── browser-use/         ← @agent-infra/browser-use (LangChain)
 │   │   ├── mcp-client/          ← @agent-infra/mcp-client
-│   │   ├── mcp-servers/         ← Built-in MCP servers
+│   │   ├── mcp-servers/
 │   │   │   ├── browser/         ← @agent-infra/mcp-server-browser
 │   │   │   ├── commands/        ← @agent-infra/mcp-server-commands
 │   │   │   └── filesystem/      ← @agent-infra/mcp-server-filesystem
 │   │   ├── search/              ← @agent-infra/search
 │   │   └── logger/              ← @agent-infra/logger
 │   ├── ui-tars/                 ← UI-TARS Desktop packages
-│   │   ├── sdk/                 ← @ui-tars/sdk (VLM loop)
+│   │   ├── sdk/                 ← @ui-tars/sdk (VLM action loop)
 │   │   ├── action-parser/       ← @ui-tars/action-parser
-│   │   ├── operators/           ← nut-js, browser operators
+│   │   ├── operators/           ← nut-js + browser operators
 │   │   ├── electron-ipc/        ← @ui-tars/electron-ipc
 │   │   └── shared/              ← @ui-tars/shared
 │   └── common/
 │       ├── configs/             ← @common/configs (ESLint, Prettier, TS)
 │       └── electron-build/      ← @common/electron-build (Forge configs)
 │
-└── vitest.*.mts                 ← Vitest configurations
+└── vitest.*.mts
 ```
 
-> **Note:** The `pnpm-workspace.yaml` includes `apps/agent-tars/src/*` and `apps/ui-tars/src/*` as separate workspace packages — each subdirectory under `src/` is an independently publishable package.
+### `multimodal/` Sub-Monorepo (Agent TARS CLI + Web UI)
+
+```
+multimodal/                      ← Own pnpm-workspace.yaml + package.json
+├── pnpm-workspace.yaml          ← Workspace: agent-tars/*, tarko/*, gui-agent/*, ...
+│
+├── agent-tars/                  ← Agent TARS packages
+│   ├── cli/                     ← @agent-tars/cli  (npm entrypoint, bin/cli.js)
+│   ├── core/                    ← @agent-tars/core (domain logic, context engineering)
+│   └── interface/               ← @agent-tars/interface (shared TypeScript types)
+│
+├── tarko/                       ← @tarko/* framework layer
+│   ├── agent/                   ← @tarko/agent (event-stream meta-framework)
+│   ├── mcp-agent/               ← @tarko/mcp-agent (MCP kernel)
+│   ├── agent-cli/               ← @tarko/agent-cli (CLI scaffolding)
+│   ├── agent-server/            ← @tarko/agent-server (HTTP + SSE server)
+│   ├── agent-server-next/       ← @tarko/agent-server-next
+│   ├── agent-ui/                ← @tarko/agent-ui (Web UI React components)
+│   ├── agent-ui-builder/        ← @tarko/agent-ui-builder (asset bundler)
+│   ├── agent-ui-cli/            ← @tarko/agent-ui-cli
+│   ├── context-engineer/        ← @tarko/context-engineer (L0-L3 memory)
+│   ├── llm-client/              ← @tarko/llm-client
+│   ├── llm/                     ← @tarko/llm
+│   ├── model-provider/          ← @tarko/model-provider
+│   ├── mcp-agent-interface/     ← @tarko/mcp-agent-interface
+│   ├── agent-interface/         ← @tarko/agent-interface
+│   ├── interface/               ← @tarko/interface
+│   ├── config-loader/           ← @tarko/config-loader
+│   ├── shared-utils/            ← @tarko/shared-utils
+│   ├── shared-media-utils/      ← @tarko/shared-media-utils
+│   ├── agio/                    ← @tarko/agio (telemetry)
+│   ├── agent-snapshot/          ← @tarko/agent-snapshot (testing)
+│   └── ui/                      ← @tarko/ui
+│
+├── gui-agent/                   ← @gui-agent/* packages
+│   ├── operator-browser/        ← @gui-agent/operator-browser
+│   ├── action-parser/           ← @gui-agent/action-parser
+│   └── shared/                  ← @gui-agent/shared
+│
+├── omni-tars/                   ← @omni-tars/agent
+├── benchmark/                   ← Evaluation benchmarks
+│   └── content-extraction/
+└── websites/                    ← agent-tars.com documentation site
+```
 
 ---
 
@@ -446,13 +500,13 @@ agent-tars --provider anthropic \
 **From source (development):**
 ```bash
 git clone https://github.com/bytedance/UI-TARS-desktop.git
-cd UI-TARS-desktop
+cd UI-TARS-desktop/multimodal
 
 # Install dependencies (pnpm >= 9 required)
 pnpm install
 
 # Run Agent TARS CLI in dev mode
-# (package is in apps/agent-tars/src/cli)
+# (source: multimodal/agent-tars/cli/)
 pnpm --filter @agent-tars/cli dev
 ```
 

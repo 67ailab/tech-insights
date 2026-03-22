@@ -1,7 +1,8 @@
 # Agent TARS: Architecture, Key Innovations, Dependencies & Alternatives
 
 **Research Date:** March 22, 2026  
-**Primary Sources:** [bytedance/UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop), npm registry, local analysis file at `/root/tech-insights/AgenticSRE/agent-tars-analysis-20260317.md`
+**Primary Sources:** [bytedance/UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) (cloned + source code review), npm registry, local analysis file at `/root/tech-insights/AgenticSRE/agent-tars-analysis-20260317.md`  
+**Last Updated:** March 22, 2026 — verified against cloned source code
 
 ---
 
@@ -36,24 +37,35 @@ Agent TARS is ByteDance's open-source multimodal AI agent stack, hosted in the [
 │  │   ├── core/               ← @agent-tars/core (domain logic)       │  │
 │  │   └── interface/          ← @agent-tars/interface (types)         │  │
 │  │                                                                    │  │
-│  │   tarko/                  ← @tarko/* framework layer              │  │
+│  │   tarko/                  ← @tarko/* framework layer (21 pkgs)    │  │
 │  │   ├── agent/              ← @tarko/agent (event-stream base)      │  │
 │  │   ├── mcp-agent/          ← @tarko/mcp-agent (MCP kernel)        │  │
 │  │   ├── agent-cli/          ← @tarko/agent-cli (CLI framework)      │  │
 │  │   ├── agent-server/       ← @tarko/agent-server (HTTP + SSE)      │  │
 │  │   ├── agent-ui/           ← @tarko/agent-ui (Web UI components)   │  │
 │  │   ├── agent-ui-builder/   ← @tarko/agent-ui-builder               │  │
-│  │   ├── context-engineer/   ← @tarko/context-engineer (L0-L3)       │  │
+│  │   ├── context-engineer/   ← @tarko/context-engineer (context)     │  │
 │  │   ├── llm-client/         ← @tarko/llm-client                     │  │
 │  │   ├── model-provider/     ← @tarko/model-provider                 │  │
 │  │   └── shared-*/           ← @tarko/shared-utils, media-utils      │  │
 │  │                                                                    │  │
-│  │   gui-agent/              ← @gui-agent/* packages                 │  │
+│  │   gui-agent/              ← @gui-agent/* packages (8 pkgs)        │  │
+│  │   ├── agent-sdk/          ← @gui-agent/agent-sdk (GUI Agent)      │  │
 │  │   ├── operator-browser/   ← Browser operator                      │  │
+│  │   ├── operator-nutjs/     ← Desktop operator (nut-js)             │  │
+│  │   ├── operator-adb/       ← Android operator (ADB)                │  │
+│  │   ├── operator-aio/       ← All-in-one sandbox operator           │  │
+│  │   ├── cli/                ← GUI Agent CLI                         │  │
 │  │   ├── action-parser/      ← VLM action parsing                    │  │
 │  │   └── shared/             ← Shared GUI agent types                │  │
 │  │                                                                    │  │
-│  │   omni-tars/              ← @omni-tars/agent                      │  │
+│  │   omni-tars/              ← @omni-tars/* multi-agent system       │  │
+│  │   ├── core/               ← @omni-tars/core                       │  │
+│  │   ├── omni-agent/         ← @omni-tars/omni-agent (orchestrator)  │  │
+│  │   ├── mcp-agent/          ← @omni-tars/mcp-agent                  │  │
+│  │   ├── gui-agent/          ← @omni-tars/gui-agent                  │  │
+│  │   └── code-agent/         ← @omni-tars/code-agent                 │  │
+│  │                                                                    │  │
 │  │   benchmark/              ← Evaluation benchmarks                 │  │
 │  │   websites/               ← agent-tars.com docs site              │  │
 │  └────────────────────────────────────────────────────────────────────┘  │
@@ -116,7 +128,13 @@ This package is where Agent TARS's differentiated agent logic lives. Its depende
 └── @agent-tars/interface   ← Shared TypeScript types/interfaces
 ```
 
-Dev dependencies also tell the story — it uses `@agent-infra/browser`, `@agent-infra/mcp-server-browser`, `@agent-infra/mcp-server-commands`, `@agent-infra/mcp-server-filesystem` for testing against the browser and shell tools.
+Dev dependencies also tell the story — it uses `@gui-agent/operator-browser`, `@gui-agent/action-parser`, `@gui-agent/shared`, `@agent-infra/mcp-server-browser`, `@agent-infra/mcp-server-commands`, `@agent-infra/mcp-server-filesystem` for testing against the browser and shell tools.
+
+The core class `AgentTARS` extends `MCPAgent` (which extends `Agent`), forming the full inheritance chain: `@tarko/agent` → `@tarko/mcp-agent` → `@agent-tars/core`. It adds:
+- **Browser control** (hybrid/DOM/visual-grounding strategies via factory pattern)
+- **Filesystem tools** (local environment)
+- **Search provider integration**
+- **Environment support** — both local and AIO (All-In-One sandbox) execution modes
 
 ---
 
@@ -127,7 +145,9 @@ Dev dependencies also tell the story — it uses `@agent-infra/browser`, `@agent
 **Exports:** `.` (main) and `._config` (configuration utilities)
 
 This is the lowest-level foundation of the entire Agent TARS agent loop. It implements:
-- **Event Stream** protocol — all agent state changes are expressed as typed events, not direct mutations
+- **Event Stream** protocol via `AgentEventStreamProcessor` — all agent state changes are expressed as typed events, not direct mutations
+- **Agent core** — `Agent`, `AgentRunner`, `ToolManager`, `MessageHistory` classes
+- **Tool call engines** — three strategies: Native, PromptEngineering, StructuredOutputs
 - **LLM client abstraction** via `@tarko/llm-client` and `@tarko/model-provider`
 - **Agent interface contracts** via `@tarko/agent-interface`
 
@@ -151,11 +171,12 @@ Dependencies:
 **Description (npm):** "An event-stream driven MCP Agent Framework for building effective multimodal Agents."  
 **Version:** 0.3.0
 
-This package sits between `@tarko/agent` and `@agent-tars/core`. It wraps the base agent loop with MCP (Model Context Protocol) tool integration:
+This package sits between `@tarko/agent` and `@agent-tars/core`. It extends the base `Agent` class with MCP (Model Context Protocol) tool integration via the `MCPAgent` class, which dynamically creates MCP clients (`MCPClientV2`), registers MCP tools as Agent tools, and supports server filtering (include/exclude):
 
 ```
 @tarko/mcp-agent
 ├── @tarko/agent                  ← Base event-stream agent
+├── @tarko/agent-snapshot         ← Agent state snapshots
 ├── @agent-infra/mcp-client       ← MCP client (supports Electron same-process mode)
 ├── @modelcontextprotocol/sdk ^1.12.1  ← Official MCP SDK
 ├── @agent-infra/logger           ← Structured logging
@@ -336,20 +357,32 @@ The training pipeline ingests three types of data:
 
 This creates a self-improving loop without requiring human annotation of every failure case.
 
-### 5. Hierarchical Context Engineering (L0–L3)
+### 5. Context Engineering (`@tarko/context-engineer`)
 
-Agent TARS manages context via four memory tiers to prevent token overflow in long agentic tasks:
+The `@tarko/context-engineer` package provides context processing utilities for managing agent inputs:
 
-| Level | Name | Lifetime | Content |
-|---|---|---|---|
-| L0 | Permanent | Always | Core system prompt, identity |
-| L1 | Run | Full session | Session goals, persistent facts |
-| L2 | Loop | Current iteration | Task state, recent tool outputs |
-| L3 | Ephemeral | Single step | Temporary computations, discarded after use |
+| Module | Purpose |
+|---|---|
+| `WorkspacePack` | Bundles code/project context into compact representations via `.pack()` |
+| `ContextReferenceProcessor` | Processes and resolves context references across agent turns |
+| `ImageProcessor` | Handles screenshot/media processing for multimodal context |
+
+The package exports three entry points: `./` (core), `./node` (Node.js runtime), `./runtime` (browser runtime).
+
+> **Note:** An earlier analysis referenced "L0–L3 hierarchical memory tiers" (Permanent / Run / Loop / Ephemeral). Source code inspection of `@tarko/context-engineer` does **not** confirm this naming convention in the current codebase. The actual implementation focuses on workspace packing, context reference resolution, and image processing rather than explicit tiered memory management. The L0–L3 framework may describe a conceptual architecture from the paper rather than a direct code mapping.
 
 ### 6. Event Stream Architecture
 
-All agent state is expressed through a **protocol-driven Event Stream** (not direct object mutation). Every tool call, model response, and status change emits a typed event. This single stream simultaneously drives:
+All agent state is expressed through a **protocol-driven Event Stream** (not direct object mutation). The implementation centers on the `AgentEventStream` namespace (defined in `@tarko/agent-interface`) and `AgentEventStreamProcessor` class (in `@tarko/agent`). Every tool call, model response, and status change emits a typed event via `CoreEventType`:
+
+- **Conversation:** `user_message`, `assistant_message`, `assistant_thinking_message`
+- **Streaming:** `assistant_streaming_message`, `assistant_streaming_tool_call`
+- **Tools:** `tool_call`, `tool_result`
+- **Planning:** `plan_start`, `plan_update`, `plan_finish`
+- **Lifecycle:** `agent_run_start`, `agent_run_end`, `system`, `environment_input`
+- **Output:** `final_answer`, `final_answer_streaming`
+
+The event stream supports filtering, batching, and auto-trimming (max 1000 events by default). This single stream simultaneously drives:
 - Context assembly (what the model sees)
 - Real-time Web UI rendering
 - REST + SSE API for external consumers
@@ -357,10 +390,11 @@ All agent state is expressed through a **protocol-driven Event Stream** (not dir
 
 ### 7. Hybrid Browser Control Strategy
 
-Three interchangeable strategies for browser interaction:
-- **Visual Grounding (GUI Agent)** — Takes screenshot, uses VLM to identify pixel coordinates of target element
-- **DOM** — Injects JS to enumerate interactive elements and act on them programmatically
-- **Hybrid** — Switches between strategies based on task context (e.g., DOM for fast reliable clicks, vision for ambiguous layouts)
+Three interchangeable strategies for browser interaction, implemented as classes in `@agent-tars/core` (`src/environments/local/browser/browser-control-strategies/`) and selected via a factory pattern:
+
+- **`BrowserVisualGroundingStrategy`** — Takes screenshot, uses VLM (GUI Agent) to identify pixel coordinates of target element. Self-implements navigation tools; does NOT depend on MCP Browser server.
+- **`BrowserDOMStrategy`** — Exclusively uses MCP Browser tools for DOM-based element selection and programmatic interaction.
+- **`BrowserHybridStrategy`** — Combines both GUI Agent vision-based tools AND MCP Browser DOM-based tools, allowing the model to choose the best approach per action.
 
 ---
 
@@ -372,8 +406,9 @@ The repository contains **two independent pnpm monorepos**:
 
 ```
 bytedance/UI-TARS-desktop/
-├── pnpm-workspace.yaml          ← Root workspace (apps/*, packages/*)
-├── package.json                 ← pnpm@9.10.0, Node >=20, turbo
+├── pnpm-workspace.yaml          ← Root workspace (apps/*, apps/agent-tars/src/*, packages/*)
+├── package.json                 ← pnpm@9.10.0, Node >=20, Turborepo
+├── turbo.json                   ← Task definitions (build, dev, test)
 │
 ├── apps/
 │   └── ui-tars/                 ← UI-TARS Desktop (Electron app)
@@ -410,8 +445,8 @@ bytedance/UI-TARS-desktop/
 ### `multimodal/` Sub-Monorepo (Agent TARS CLI + Web UI)
 
 ```
-multimodal/                      ← Own pnpm-workspace.yaml + package.json
-├── pnpm-workspace.yaml          ← Workspace: agent-tars/*, tarko/*, gui-agent/*, ...
+multimodal/                      ← Own pnpm-workspace.yaml + package.json (Node >=22, pnpm 9)
+├── pnpm-workspace.yaml          ← Workspace: agent-tars/*, tarko/*, gui-agent/*, omni-tars/*, ...
 │
 ├── agent-tars/                  ← Agent TARS packages
 │   ├── cli/                     ← @agent-tars/cli  (npm entrypoint, bin/cli.js)
@@ -427,7 +462,7 @@ multimodal/                      ← Own pnpm-workspace.yaml + package.json
 │   ├── agent-ui/                ← @tarko/agent-ui (Web UI React components)
 │   ├── agent-ui-builder/        ← @tarko/agent-ui-builder (asset bundler)
 │   ├── agent-ui-cli/            ← @tarko/agent-ui-cli
-│   ├── context-engineer/        ← @tarko/context-engineer (L0-L3 memory)
+│   ├── context-engineer/        ← @tarko/context-engineer (context processing)
 │   ├── llm-client/              ← @tarko/llm-client
 │   ├── llm/                     ← @tarko/llm
 │   ├── model-provider/          ← @tarko/model-provider
@@ -441,12 +476,22 @@ multimodal/                      ← Own pnpm-workspace.yaml + package.json
 │   ├── agent-snapshot/          ← @tarko/agent-snapshot (testing)
 │   └── ui/                      ← @tarko/ui
 │
-├── gui-agent/                   ← @gui-agent/* packages
+├── gui-agent/                   ← @gui-agent/* packages (8 packages)
+│   ├── agent-sdk/               ← @gui-agent/agent-sdk (full GUI agent)
 │   ├── operator-browser/        ← @gui-agent/operator-browser
+│   ├── operator-nutjs/          ← @gui-agent/operator-nutjs (desktop)
+│   ├── operator-adb/            ← @gui-agent/operator-adb (Android)
+│   ├── operator-aio/            ← @gui-agent/operator-aio (sandbox)
+│   ├── cli/                     ← @gui-agent/cli
 │   ├── action-parser/           ← @gui-agent/action-parser
 │   └── shared/                  ← @gui-agent/shared
 │
-├── omni-tars/                   ← @omni-tars/agent
+├── omni-tars/                   ← @omni-tars/* multi-agent system (5 packages)
+│   ├── core/                    ← @omni-tars/core
+│   ├── omni-agent/              ← @omni-tars/omni-agent (orchestrator)
+│   ├── mcp-agent/               ← @omni-tars/mcp-agent
+│   ├── gui-agent/               ← @omni-tars/gui-agent
+│   └── code-agent/              ← @omni-tars/code-agent
 ├── benchmark/                   ← Evaluation benchmarks
 │   └── content-extraction/
 └── websites/                    ← agent-tars.com documentation site
@@ -463,9 +508,14 @@ multimodal/                      ← Own pnpm-workspace.yaml + package.json
 │   │   ├── @tarko/agent  ← "meta agent framework, event-stream driven"
 │   │   │   ├── @tarko/llm-client
 │   │   │   └── @tarko/model-provider
+│   │   ├── @tarko/agent-snapshot
 │   │   └── @agent-infra/mcp-client
-│   │       └── @modelcontextprotocol/sdk ~1.15.1
-│   └── @tarko/shared-media-utils
+│   │       └── @modelcontextprotocol/sdk ^1.12.1
+│   ├── @tarko/shared-media-utils
+│   └── @agent-tars/interface
+│       ├── @tarko/mcp-agent-interface
+│       ├── @tarko/interface
+│       └── @tarko/agio
 └── @tarko/agent-cli
     ├── @tarko/agent-server  (HTTP + SSE)
     ├── @tarko/agent-ui-builder  (Web UI assets)
@@ -502,13 +552,22 @@ agent-tars --provider anthropic \
 git clone https://github.com/bytedance/UI-TARS-desktop.git
 cd UI-TARS-desktop/multimodal
 
-# Install dependencies (pnpm >= 9 required)
+# Install dependencies and build all packages in order (pnpm >= 9 required, Node >= 22)
 pnpm install
+pnpm bootstrap    # Builds tarko/* → gui-agent/* → agent-tars/* → omni-tars/*
 
-# Run Agent TARS CLI in dev mode
-# (source: multimodal/agent-tars/cli/)
-pnpm --filter @agent-tars/cli dev
+# Watch mode for development (uses pdk — pnpm-dev-kit)
+pnpm dev          # Watches all packages
+pnpm dev:core     # Watches only @agent-tars/core
+
+# Run CLI directly (after bootstrap)
+./agent-tars/cli/bin/cli.js \
+  --provider anthropic \
+  --model claude-3-7-sonnet-latest \
+  --apiKey $ANTHROPIC_API_KEY
 ```
+
+> **Note:** The multimodal/ sub-monorepo uses `pdk` (pnpm-dev-kit) for development, NOT Turborepo. Turborepo is only used at the root level for UI-TARS Desktop.
 
 **Headless server mode:**
 ```bash
@@ -548,9 +607,9 @@ VLM Model Name: doubao-1.5-ui-tars-250328
 ```bash
 git clone https://github.com/bytedance/UI-TARS-desktop.git
 cd UI-TARS-desktop
-pnpm install
+pnpm install    # Node >= 20, pnpm >= 9
 
-# Start UI-TARS Desktop in dev mode (HMR enabled)
+# Start UI-TARS Desktop in dev mode (HMR enabled, via Turborepo)
 pnpm run dev:ui-tars
 
 # Or with main process live reload
@@ -580,6 +639,8 @@ pnpm --filter @agent-infra/browser test
 # E2E tests (Playwright)
 pnpm run test:e2e
 ```
+
+> **⚠️ Node.js version note:** The root monorepo (UI-TARS Desktop) requires Node ≥ 20, while the multimodal/ sub-monorepo (Agent TARS) requires Node ≥ 22 (CLI specifically ≥ 22.15.0). If working on both products, use Node ≥ 22.15.0 to satisfy both constraints.
 
 ---
 
@@ -689,14 +750,16 @@ Key differences:
 
 | Claim | Confidence | Basis |
 |---|---|---|
-| Monorepo structure, package layout | **High** | `pnpm-workspace.yaml`, `CONTRIBUTING.md` from source |
-| Package dependency graph | **High** | npm registry responses for all packages |
+| Monorepo structure, package layout | **High** | Verified against cloned source code (pnpm-workspace.yaml, all package.json files) |
+| Package dependency graph | **High** | Verified against actual package.json deps in cloned repo |
+| Inheritance chain (Agent → MCPAgent → AgentTARS) | **High** | Verified in TypeScript source code |
+| Event Stream architecture (AgentEventStreamProcessor) | **High** | Verified in `@tarko/agent` and `@tarko/agent-interface` source |
+| Hybrid browser control (3 strategies) | **High** | Verified: BrowserHybridStrategy, BrowserVisualGroundingStrategy, BrowserDOMStrategy in source |
 | CLI invocation flags | **High** | README and npm registry |
-| Build commands | **High** | `CONTRIBUTING.md` and `apps/ui-tars/package.json` |
+| Build commands (root: turbo, multimodal: pdk) | **High** | Verified against both CONTRIBUTING.md files and package.json scripts |
 | Benchmark numbers | **High** | Local analysis file + README |
-| Internal `@tarko/*` package purposes | **Medium-High** | npm descriptions + dependency graph analysis |
-| `apps/agent-tars/src/` subdirectory naming | **Medium** | Inferred from `pnpm-workspace.yaml` pattern; 404s on direct file fetches suggest the structure may differ slightly |
-| Context Engineering L0–L3 tiers | **High** | Local analysis file (March 2026 deep-dive) |
+| @gui-agent/* and @omni-tars/* package listing | **High** | Verified against cloned repo directory listing |
+| Context Engineering (`@tarko/context-engineer`) | **Medium** | Source confirms WorkspacePack/ContextReferenceProcessor/ImageProcessor; L0-L3 naming NOT found in code |
 | Alternative agent benchmarks | **High** | Cross-referenced from README and local analysis |
 
 ---

@@ -1,0 +1,86 @@
+{
+  "date": "2026-05-01",
+  "hn": [
+    {
+      "id": 47963204,
+      "title": "Claude Code refuses requests or charges extra if your commits mention \"OpenClaw\"",
+      "score": 1192,
+      "url": "https://twitter.com/theo/status/2049645973350363168",
+      "hn_url": "https://news.ycombinator.com/item?id=47963204",
+      "by": "elmean",
+      "time": 1777559818,
+      "text": "https:&#x2F;&#x2F;xcancel.com&#x2F;theo&#x2F;status&#x2F;2049645973350363168"
+    },
+    {
+      "id": 47927903,
+      "title": "Talkie: a 13B vintage language model from 1930",
+      "score": 762,
+      "url": "https://talkie-lm.com/introducing-talkie",
+      "hn_url": "https://news.ycombinator.com/item?id=47927903",
+      "by": "jekude",
+      "time": 1777326948,
+      "text": ""
+    },
+    {
+      "id": 47957294,
+      "title": "The Zig project's rationale for their anti-AI contribution policy",
+      "score": 656,
+      "url": "https://simonwillison.net/2026/Apr/30/zig-anti-ai/",
+      "hn_url": "https://news.ycombinator.com/item?id=47957294",
+      "by": "lumpa",
+      "time": 1777515347,
+      "text": ""
+    },
+    {
+      "id": 47959463,
+      "title": "Mozilla's opposition to Chrome's Prompt API",
+      "score": 625,
+      "url": "https://github.com/mozilla/standards-positions/issues/1213#issuecomment-4347988313",
+      "hn_url": "https://news.ycombinator.com/item?id=47959463",
+      "by": "jaffathecake",
+      "time": 1777535035,
+      "text": ""
+    },
+    {
+      "id": 47964617,
+      "title": "Shai-Hulud Themed Malware Found in the PyTorch Lightning AI Training Library",
+      "score": 406,
+      "url": "https://semgrep.dev/blog/2026/malicious-dependency-in-pytorch-lightning-used-for-ai-training/",
+      "hn_url": "https://news.ycombinator.com/item?id=47964617",
+      "by": "j12y",
+      "time": 1777565366,
+      "text": ""
+    },
+    {
+      "id": 47960507,
+      "title": "Granite 4.1: IBM's 8B Model Matching 32B MoE",
+      "score": 295,
+      "url": "https://firethering.com/granite-4-1-ibm-open-source-model-family/",
+      "hn_url": "https://news.ycombinator.com/item?id=47960507",
+      "by": "steveharing1",
+      "time": 1777545077,
+      "text": "https:&#x2F;&#x2F;research.ibm.com&#x2F;blog&#x2F;granite-4-1-ai-foundation-mode..."
+    },
+    {
+      "id": 47937814,
+      "title": "Reverse Engineering SimTower",
+      "score": 212,
+      "url": "https://phulin.me/blog/simtower",
+      "hn_url": "https://news.ycombinator.com/item?id=47937814",
+      "by": "patrickhulin",
+      "time": 1777398098,
+      "text": "This is the story of building https:&#x2F;&#x2F;towers.world , a ~perfect, tick-for-tick reproduction of 1993 game SimTower. I spent weeks reverse-engineering the original EXE and writing up a detailed spec of how the simulation actually works under the hood \u2014 population flow, elevator AI, the whole star-rating system. The specs are all on GitHub if you want to read them: https:&#x2F;&#x2F;github.com&#x2F;phulin&#x2F;tower-together&#x2F;tree&#x2F;main&#x2F;specs It&#x27;s also collaborative. Multiple players can connect to the same tower, the simulation keeps running as long as anyone&#x27;s connected, and build actions sync across clients in real time. Because I rebuilt the UI, I could add features like shift-click to build grids of rooms - instead of painstakingly clicking to build rows of offices and hotels, shift-click allows a 10-floor grid to be built all at once. The game runs on Cloudflare Durable Objects, one of my favorite web primitives. Everything is open source: https:&#x2F;&#x2F;github.com&#x2F;phulin&#x2F;tower-together"
+    },
+    {
+      "id": 47956739,
+      "title": "Mike: open-source legal AI",
+      "score": 200,
+      "url": "https://mikeoss.com/",
+      "hn_url": "https://news.ycombinator.com/item?id=47956739",
+      "by": "noleary",
+      "time": 1777510583,
+      "text": ""
+    }
+  ],
+  "hf": []
+}
